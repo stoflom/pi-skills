@@ -41,7 +41,7 @@ All of the above are available as stack entries:
 
 ## Reading the user's XMP sidecars (`<RAW>.xmp`)
 
-Reference example: `~/scratch/IMGP3521.PEF.xmp`. Structure:
+Reference example: `IMGP3521.PEF.xmp` (shipped alongside this skill). Structure:
 
 - `<darktable:history>` is an `rdf:Seq` of `rdf:li` with attrs: `num`, `operation`, `enabled`,
   `modversion`, `params`, `multi_name`, `multi_priority`, `blendop_params`.
@@ -71,16 +71,46 @@ with the `Sharpen` preset scoped to that mask group (mask_manager groups named
 group \`contrast equalizer • Sharpen\'), optionally plus a `Denoise` atrous for the background.
 With MCP, reproduce as multiple `atrous` entries with `multi_priority` to simulate masked instances.
 
+## XMP sidecar handling (important)
+
+`input.path` auto-imports the image into the library and **reads the XMP sidecar** during import.
+The full edit history (all modules, params, enabled/disabled, multi_priority, multi_name) is
+restored into the database. Subsequent `render`/`export`/`image_stats` calls on that imgid
+render through the committed history — no manual stack reconstruction needed.
+
+**Quick export of an already-edited raw (XMP present):**
+```
+export(input: {path: "/path/to/IMG.PEF"}, out_path: "/path/out.png", width: 1920, height: 1281)
+```
+No stack needed. Check native size via `exiftool -ImageSize` and compute the other dimension
+to maintain aspect ratio.
+
+If the image is already in the library, use `input.imgid` instead (faster, no re-import).
+
+## darktable-cli as an alternative
+
+When the MCP server isn't running or for batch processing, `darktable-cli` handles XMP sidecars
+natively:
+```
+darktable-cli --import "--core --library <catalog>" --module "export" \
+  --format "png" --export <width>x<height> <raw> <output_dir>
+```
+This reads the XMP, applies the full history, and exports. Use MCP for interactive tweaking,
+`darktable-cli` for one-shot or batch exports.
+
 ## Workflow
 
-1. Read EXIF first (`exiftool <raw>`) for lens/WB/orientation values.
-2. **Render a quick preview first** (`render` with `width` ~1600) to see the base look before tuning.
-3. **Check every field name against `module_schema`** before passing `params`. Field names are not
+1. **Check for an XMP sidecar first** (`ls <RAW>.xmp`). If it exists, you can export directly
+   with just width/height — no stack needed. The full pipeline is in the sidecar.
+2. For new/untouched raws: read EXIF (`exiftool <raw>`) for lens/WB/orientation values.
+3. **Render a quick preview first** (`render` with `width` ~1600) to see the base look before tuning.
+4. **Check every field name against `module_schema`** before passing `params`. Field names are not
    what you'd guess (e.g. exposure has no `highlight`).
-4. Iterate with small `render` previews; use `image_stats` to measure mean/p99/clip counts when
+5. Iterate with small `render` previews; use `image_stats` to measure mean/p99/clip counts when
    judging exposure or clipping objectively.
-5. Finalize with `export` at **native resolution** — always pass explicit `width`/`height`
+6. Finalize with `export` — always pass explicit `width`/`height`
    (check native size via `exiftool -ImageSize`), or you silently get a 1024px preview.
+   For scaled output, compute the other dimension to maintain aspect ratio.
 
 ## Pitfalls
 
