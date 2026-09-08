@@ -9,6 +9,10 @@ Server: `darktable-mcp` (headless, links libdarktable directly). Setup/build doc
 [README.md](./README.md). Server reference: `src/mcp/README.md` in the darktable
 source tree (upstream: <https://github.com/darktable/darktable/blob/master/src/mcp/README.md>).
 
+**Server not running:** if the `mcp_darktable_*` tools are unavailable or a call fails with a
+connection/MCP error, the `darktable` MCP server has not been started. Do not retry —
+prompt the user to run `/mcp:start darktable` first.
+
 ## Tools
 
 | Group | Tools |
